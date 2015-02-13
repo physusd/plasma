@@ -4,27 +4,47 @@ void main(int argc, int** argv)
    double dx=0.1*nm;
    double Ee=1000*V/cm;
 
-   double t=0;
-   for (int i=-imin; i<imax; i++) {
-      p[i]=-n[i]=gaus(i);
+   // initialize arrays
+   const int N = 1000;
+   double p[2*N+1], n[2*N+1], E[2*N+1];
+   for (int i=-N; i<=N; i++) {
+      p[i]=n[i]=gaus(i);
+      E[i]=0;
+      for (int j=-N; j<=i; j++) {
+         dE_dx[j]=q*(p[j]-n[j])/epsilon;
+         E[i]+=dE_dx[j]*dx;
+      }
+      E[i]+=Ee;
    }
+
+   // evolve
+   double t=0;
    while (t<100*ns) {
-      for (int i=-imin; i<imax; i++) {
+      for (int i=-N; i<=N; i++) {
+         // update electron distribution
+         dn_dx = (n[i+1]-n[i])/dx;
+         dn_dt = mu_e*(dn_dx*E[i]+n[i]*dE_dx[i]);
+         n[i]+=dn_dt*dt;
+
+         // update hole distribution
+         dp_dx = (p[i+1]-p[i])/dx;
+         dp_dt = -mu_h*(dp_dx*E[i]+p[i]*dE_dx[i]);
+         p[i]+=dp_dt*dt;
+
+         // update electric field distribution
          E[i]=0;
-         for (int j=-imin; j<i; j++) {
-            E[i]+=q/dielec*(p[j]-n[j])*dx;
+         for (int j=-N; j<=i; j++) {
+            dE_dx[j]=q*(p[j]-n[j])/epsilon;
+            E[i]+=dE_dx[j]*dx;
          }
          E[i]+=Ee;
-
-         pSlope_x[i]=(p[i+1]-p[i])/dx;
-         nSlope_x[i]=(n[i+1]-n[i])/dx;
-
-         pSlope_t[i] - nSlope_t[i] = - mu*E[i]*(pSlope_x[i]-nSlope_x[i]) - q*mu/dielec*(p[i]-n[i])*(p[i]-n[i]);
       }
-
-      t=t+dt;
+      t+=dt;
    }
+
+   return;
 }
+
 double gaus(int)
 {
    return 1;

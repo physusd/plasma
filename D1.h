@@ -7,11 +7,13 @@
 
 namespace PLASMA {
   class D1; // 1 dimensional distribution
-  const Int_t Nmax = 1000; // maximal number of grids in one direction
 }
 
 class D1: public TObject
 {
+   public:
+      const Int_t Nmax = 1000; // maximal number of grids in one direction
+
    protected:
       std::vector<Double_t> vec;
 

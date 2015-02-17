@@ -1,12 +1,19 @@
-void main(int argc, int** argv)
+#include "Units.h"
+#include "Constants.h"
+using namespace UNIC;
+
+#include "D1.h"
+using namespace PLASMA;
+
+void main(int argc, char** argv)
 {
-   double dt=0.1*ns;
+   double dt=0.01*ns;
    double dx=0.1*nm;
-   double Ee=1000*V/cm;
+   double Ee=1000*volt/cm;
 
    // initialize arrays
    const int N = 1000;
-   double p[2*N+1], n[2*N+1], E[2*N+1];
+   D1 p(2*N+1), n(2*N+1), E(2*N+1);
    for (int i=-N; i<=N; i++) {
       p[i]=n[i]=gaus(i);
       E[i]=0;

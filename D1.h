@@ -14,10 +14,9 @@ class D1: public TObject
 {
    protected:
       std::vector<Double_t> vec;
-      Double_t dx; // interval
 
    public:
-      D1(Int_t size=2*Nmax+1, Double_t interval=1): dx(interval) { vec.resize(size); }
+      D1(Int_t size=2*Nmax+1);
       virtual ~D1() {};
 
       Int_t N() { return (vec.size()-1)/2; }
@@ -33,9 +32,6 @@ class D1: public TObject
        */
       Double_t At(Int_t i);
       Double_t operator[](Int_t i) { At(i); }
-
-      void SetInterval(Double_t interval) { dx=interval; }
-      Double_t Interval() { return dx; }
 
       ClassDef(D1,1);
 };

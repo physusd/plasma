@@ -7,13 +7,11 @@
 
 namespace PLASMA {
   class D1; // 1 dimensional distribution
+  const Int_t Nmax = 1000; // maximal number of grids in one direction
 }
 
-class D1: public TObject
+class PLASMA::D1 : public TObject
 {
-   public:
-      const Int_t Nmax = 1000; // maximal number of grids in one direction
-
    protected:
       std::vector<Double_t> vec;
 
@@ -33,7 +31,7 @@ class D1: public TObject
        * Get the i-th value;
        */
       Double_t At(Int_t i);
-      Double_t operator[](Int_t i) { At(i); }
+      Double_t operator[](Int_t i) { return At(i); }
 
       ClassDef(D1,1);
 };

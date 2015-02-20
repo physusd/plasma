@@ -38,6 +38,8 @@ int main(int argc, char** argv)
          V[i]+=(p[j]-n[j])/Abs(i-j);
       }
       V[i]*=e_SI/4/Pi()/epsilon/dx;
+   }
+   for (int i=0; i<2*N+1; i++) {
       if (i==2*N) dV = V[i]-V[i-1];
       else dV = V[i+1]-V[i];
       E[i]=dV/dx+Ee;
@@ -54,8 +56,8 @@ int main(int argc, char** argv)
    int iStep=0;
    while (iStep<nSteps) {
       t->Fill();
+      // update electron and hole distributions
       for (int i=0; i<2*N+1; i++) {
-         // update electron distribution
          if (i==2*N) {
             dp = p[i]-p[i-1];
             dn = n[i]-n[i-1];
@@ -68,18 +70,20 @@ int main(int argc, char** argv)
          }
          dn_dt = mu_e*(dn/dx*E[i]+n[i]*dE/dx);
          n[i]+=dn_dt*dt;
-
-         // update hole distribution
          dp_dt = -mu_h*(dp/dx*E[i]+p[i]*dE/dx);
          p[i]+=dp_dt*dt;
+      }
 
-         // update electric field distribution
+      // update electric potential and field distributions
+      for (int i=0; i<2*N+1; i++) {
          V[i]=0;
          for (int j=0; j<2*N+1; j++) {
             if (j==i) continue; // what to do?
             V[i]+=(p[j]-n[j])/Abs(i-j);
          }
          V[i]*=e_SI/4/Pi()/epsilon/dx;
+      }
+      for (int i=0; i<2*N+1; i++) {
          if (i==2*N) dV = V[i]-V[i-1];
          else dV = V[i+1]-V[i];
          E[i]=dV/dx+Ee;

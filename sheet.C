@@ -1,3 +1,5 @@
+#include <iostream>
+using namespace std;
 // ROOT
 #include <TTree.h>
 #include <TFile.h>
@@ -7,17 +9,14 @@ using namespace TMath;
 #include <UNIC/Units.h>
 #include <UNIC/Constants.h>
 using namespace UNIC;
-// PLASMA
-#include "D1.h"
-using namespace PLASMA;
 // infinite thin flat plasma sheet
 int main(int argc, char** argv)
 {
    int nSteps = atoi(argv[1]);
-   double dt=0.001*ns;
+   double dt=0.1*ns;
    double dx=0.1*nm;
    double Ee=1000*volt/cm;
-   double mean=0,sigma=10*nm, height=10/nm;
+   double mean=0,sigma=1*nm, height=1/nm;
    bool norm;
    double epsilon=epsilon0;
    double mu_e = 40000*cm2/(volt*s);
@@ -25,42 +24,65 @@ int main(int argc, char** argv)
    double dp_dt, dn_dt;
 
    // initialize arrays
-   const int N = 1000;
-   D1 x(2*N+1), p(2*N+1), n(2*N+1), V(2*N+1), E(2*N+1);
-   for (int i=-N; i<=N; i++) {
-      x[i]=i*dx;
+   const int N = 100;
+   double x[2*N+1], p[2*N+1], n[2*N+1], V[2*N+1], E[2*N+1];
+   double dp,dn,dV,dE;
+   for (int i=0; i<2*N+1; i++) {
+      x[i]=(i-N)*dx;
       p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,norm=kTRUE);
+   }
+   for (int i=0; i<2*N+1; i++) {
       V[i]=0;
-      for (int j=-N; j<=N; j++) V[i]+=(p[j]-n[j])/Abs(i-j);
+      for (int j=0; j<2*N+1; j++) {
+         if (j==i) continue; // what to do?
+         V[i]+=(p[j]-n[j])/Abs(i-j);
+      }
       V[i]*=e_SI/4/Pi()/epsilon/dx;
-      E[i]=V.Slope(i)/dx+Ee;
+      if (i==2*N) dV = V[i]-V[i-1];
+      else dV = V[i+1]-V[i];
+      E[i]=dV/dx+Ee;
    }
 
    TFile *output = new TFile("sheet.root","recreate");
    TTree *t = new TTree("t","time slices");
-   t->Branch("x","D1",&x);
-   t->Branch("p","D1",&p);
-   t->Branch("n","D1",&n);
-   t->Branch("E","D1",&E);
+   t->Branch("x",x,"x[201]/D");
+   t->Branch("p",p,"p[201]/D");
+   t->Branch("n",n,"n[201]/D");
+   t->Branch("E",E,"E[201]/D");
 
    // evolve
    int iStep=0;
    while (iStep<nSteps) {
       t->Fill();
-      for (int i=-N; i<=N; i++) {
+      for (int i=0; i<2*N+1; i++) {
          // update electron distribution
-         dn_dt = mu_e*(n.Slope(i)/dx*E[i]+n[i]*E.Slope(i)/dx);
+         if (i==2*N) {
+            dp = p[i]-p[i-1];
+            dn = n[i]-n[i-1];
+            dE = E[i]-E[i-1];
+         }
+         else {
+            dp = p[i+1]-p[i];
+            dn = n[i+1]-n[i];
+            dE = E[i+1]-E[i];
+         }
+         dn_dt = mu_e*(dn/dx*E[i]+n[i]*dE/dx);
          n[i]+=dn_dt*dt;
 
          // update hole distribution
-         dp_dt = -mu_h*(p.Slope(i)/dx*E[i]+p[i]*E.Slope(i)/dx);
+         dp_dt = -mu_h*(dp/dx*E[i]+p[i]*dE/dx);
          p[i]+=dp_dt*dt;
 
          // update electric field distribution
          V[i]=0;
-         for (int j=-N; j<=N; j++) V[i]+=(p[j]-n[j])/Abs(i-j);
+         for (int j=0; j<2*N+1; j++) {
+            if (j==i) continue; // what to do?
+            V[i]+=(p[j]-n[j])/Abs(i-j);
+         }
          V[i]*=e_SI/4/Pi()/epsilon/dx;
-         E[i]=V.Slope(i)/dx+Ee;
+         if (i==2*N) dV = V[i]-V[i-1];
+         else dV = V[i+1]-V[i];
+         E[i]=dV/dx+Ee;
       }
       iStep++;
    }

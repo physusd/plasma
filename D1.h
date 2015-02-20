@@ -30,8 +30,8 @@ class PLASMA::D1 : public TObject
       /**
        * Get the i-th value;
        */
-      Double_t At(Int_t i);
-      Double_t operator[](Int_t i) { return At(i); }
+      Double_t& At(Int_t i);
+      Double_t& operator[](Int_t i) { return At(i); }
 
       ClassDef(D1,1);
 };

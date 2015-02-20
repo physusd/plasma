@@ -1,4 +1,6 @@
 // ROOT
+#include <TTree.h>
+#include <TFile.h>
 #include <TMath.h>
 using namespace TMath;
 // UNIC
@@ -8,7 +10,7 @@ using namespace UNIC;
 // PLASMA
 #include "D1.h"
 using namespace PLASMA;
-// infinite flat plasma sheet
+// infinite thin flat plasma sheet
 int main(int argc, char** argv)
 {
    int nSteps = atoi(argv[1]);
@@ -34,9 +36,17 @@ int main(int argc, char** argv)
       E[i]=V.Slope(i)/dx+Ee;
    }
 
+   TFile *output = new TFile("sheet.root","recreate");
+   TTree *t = new TTree("t","time slices");
+   t->Branch("x","D1",&x);
+   t->Branch("p","D1",&p);
+   t->Branch("n","D1",&n);
+   t->Branch("E","D1",&E);
+
    // evolve
    int iStep=0;
    while (iStep<nSteps) {
+      t->Fill();
       for (int i=-N; i<=N; i++) {
          // update electron distribution
          dn_dt = mu_e*(n.Slope(i)/dx*E[i]+n[i]*E.Slope(i)/dx);
@@ -54,6 +64,8 @@ int main(int argc, char** argv)
       }
       iStep++;
    }
+   t->Write("t",6);
+   output->Close();
 
    return 0;
 }

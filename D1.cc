@@ -19,11 +19,8 @@ Double_t D1::Slope(Int_t i)
 //______________________________________________________________________________
 //
 
-Double_t D1::At(Int_t i)
+Double_t& D1::At(Int_t i)
 {
-   if (i<-N() || i>N()) {
-      Warning("At", "i=%d is out of [-%d, %d]! Return 0", i, N(), N());
-      return 0;
-   }
+   if (i<-N() || i>N()) Error("At", "i=%d is out of [-%d, %d]!", i, N(), N());
    return vec.at(i+N());
 }

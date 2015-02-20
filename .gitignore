@@ -30,6 +30,7 @@
 # dependence
 *.d
 
-# ROOT libraries
+# ROOT related
 *Dict.*
 *.rootmap
+*.root

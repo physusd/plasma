@@ -180,7 +180,7 @@ tags:
 	ctags --c-kinds=+p $(HEADERS) $(SOURCES)
 
 $(EXES): %.exe:%.C install
-	$(CXX) $< $(CXXFLAGS) $(LIBS) -lGeom -L. -l$(LIBNAME) -o $@
+	$(CXX) $< $(CXXFLAGS) $(LIBS) -L$(MAD)/lib -lMAD -L. -l$(LIBNAME) -o $@
 
 install: $(ROOTMAP)
 	@echo

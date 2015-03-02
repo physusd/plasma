@@ -7,26 +7,24 @@ using namespace std;
 using namespace TMath;
 // UNIC
 #include <UNIC/Units.h>
-#include <UNIC/Constants.h>
 using namespace UNIC;
 #include <MAD/GeCrystal.h>
 using namespace MAD;
 // infinite thin flat plasma sheet
 int main(int argc, char** argv)
 {
-   double dt=1e-7*ns;
-   double dx=0.1*nm;
-   double Ee=100*volt/cm;
+   double dt=1e-5;//ns
+   double dx=10;//nm
+   double Ee=100;//volt/cm
 
-   double mean=0, sigma=1*nm, height=1e15/nm/nm;
+   double mean=0, sigma=100,/*nm*/ height=1e13;//1/nm2
    bool norm;
 
+   double epsilon=16.2*8.854187817620e-14;//C/V/cm
+   double Q=1.60217657e-19;//C
    GeCrystal Ge;
-   double epsilon=Ge.Epsilon()*epsilon0;
-   double mu_e = Ge.MuE(100);
-   double mu_h = Ge.MuH(100);
-
-   double dp_dt, dn_dt;
+   double mu_e = Ge.MuE(100)/cm2*volt*s;
+   double mu_h = Ge.MuH(100)/cm2*volt*s;
 
    // initialize arrays
    const int N = 100;
@@ -47,38 +45,27 @@ int main(int argc, char** argv)
    dn[2*N] = n[2*N]-n[2*N-1];
    dE[2*N] = E[2*N]-E[2*N-1];
 
+   // output
    TFile *output = new TFile("sheet.root","recreate");
    TTree *t = new TTree("t","time slices");
-   t->Branch("x",x,"x[201]/D");
-   t->Branch("p",p,"p[201]/D");
-   t->Branch("n",n,"n[201]/D");
-   t->Branch("E",E,"E[201]/D");
-   t->Branch("dp",dp,"dp[201]/D");
-   t->Branch("dn",dn,"dn[201]/D");
-   t->Branch("dE",dE,"dE[201]/D");
+   t->Branch("x",x,Form("x[%d]/D",2*N+1));
+   t->Branch("p",p,Form("p[%d]/D",2*N+1));
+   t->Branch("n",n,Form("n[%d]/D",2*N+1));
+   t->Branch("E",E,Form("E[%d]/D",2*N+1));
+   t->Branch("dp",dp,Form("dp[%d]/D",2*N+1));
+   t->Branch("dn",dn,Form("dn[%d]/D",2*N+1));
+   t->Branch("dE",dE,Form("dE[%d]/D",2*N+1));
 
    // evolve
    int iStep=0, nSteps = 10;
    if (argc>1) nSteps = atoi(argv[1]);
    while (iStep<nSteps) {
-      for (int i=0; i<2*N+1; i++) {
-         x[i]/=nm;
-         p[i]/=(cm*cm*cm);
-         n[i]/=(cm*cm*cm);
-         E[i]/=(volt/cm);
-      }
       t->Fill();
-      for (int i=0; i<2*N+1; i++) {
-         x[i]*=nm;
-         p[i]*=(cm*cm*cm);
-         n[i]*=(cm*cm*cm);
-         E[i]*=(volt/cm);
-      }
       // update electron and hole distributions
       for (int i=0; i<2*N+1; i++) {
-         dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
+         double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
          n[i]+=dn_dt*dt;
-         dp_dt = -mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
+         double dp_dt = -mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
          p[i]+=dp_dt*dt;
       }
       // update electric field distribution
@@ -86,7 +73,7 @@ int main(int argc, char** argv)
          E[i]=0;
          for (int j=0; j<i; j++) E[i]+=p[j]-n[j];
          for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
-         E[i]/=(2*epsilon/e_SI/dx);
+         E[i]/=(2*epsilon/Q/dx/1e-7);
          E[i]+=Ee;
       }
       // update slopes

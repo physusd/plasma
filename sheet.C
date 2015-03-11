@@ -13,18 +13,18 @@ using namespace MAD;
 // infinite thin flat plasma sheet
 int main(int argc, char** argv)
 {
-   double dt=1e-5;//ns
-   double dx=10;//nm
+   double dt=0.1;//ns
+   double dx=1;//nm
    double Ee=100;//volt/cm
 
-   double mean=0, sigma=100,/*nm*/ height=1e13;//1/nm2
+   double mean=0, sigma=100,/*nm*/ height=1e22;//1/nm2
    bool norm;
 
    double epsilon=16.2*8.854187817620e-14;//C/V/cm
    double Q=1.60217657e-19;//C
    GeCrystal Ge;
-   double mu_e = Ge.MuE(100)/cm2*volt*s;
-   double mu_h = Ge.MuH(100)/cm2*volt*s;
+//   double mu_e = Ge.MuE(100)/cm2*volt*s;
+//   double mu_h = Ge.MuH(100)/cm2*volt*s;
 
    // initialize arrays
    const int N = 100;
@@ -57,16 +57,23 @@ int main(int argc, char** argv)
    t->Branch("dE",dE,Form("dE[%d]/D",2*N+1));
 
    // evolve
-   int iStep=0, nSteps = 10;
+   int iStep=0, nSteps = 100;
    if (argc>1) nSteps = atoi(argv[1]);
    while (iStep<nSteps) {
       t->Fill();
       // update electron and hole distributions
       for (int i=0; i<2*N+1; i++) {
-         double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
-         n[i]+=dn_dt*dt;
-         double dp_dt = -mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
-         p[i]+=dp_dt*dt;
+         
+	      // double mu_e = Ge.MuE(100, n[i])/cm2*volt*s;
+	     // double mu_e = pow(1/Ge.MuEn() + 1/Ge.MuEi(n[i]), -1)/cm2*volt*s;
+	        double mu_e = pow(1/40000 + 1/(1.54e+22*pow(log(1.5e+22/n[i]), -1)/n[i]), -1);
+	      //double mu_h = Ge.MuH(100, n[i])/cm2*volt*s;
+	      double mu_h = pow(1/Ge.MuHn() + 1/Ge.MuHi(n[i]), -1)/cm2*volt*s;
+	      double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
+	      n[i]+=dn_dt*dt;
+	      double dp_dt = -mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
+	      p[i]+=dp_dt*dt;
+	      if(iStep==0 && i<5) cout<<i<<", "<<n[i]<<", "<<mu_e<<", "<<p[i]<<", "<<mu_h<<endl;
       }
       // update electric field distribution
       for (int i=0; i<2*N+1; i++) {

@@ -7,6 +7,7 @@ using namespace std;
 using namespace TMath;
 // UNIC
 #include <UNIC/Units.h>
+#include <UNIC/Constants.h>
 using namespace UNIC;
 #include <MAD/GeCrystal.h>
 using namespace MAD;
@@ -22,9 +23,6 @@ int main(int argc, char** argv)
 
    double epsilon=16.2*8.854187817620e-14;//C/V/cm
    double Q=1.60217657e-19;//C
-   GeCrystal Ge;
-//   double mu_e = Ge.MuE(100)/cm2*volt*s;
-//   double mu_h = Ge.MuH(100)/cm2*volt*s;
 
    // initialize arrays
    const int N = 100;
@@ -63,17 +61,12 @@ int main(int argc, char** argv)
       t->Fill();
       // update electron and hole distributions
       for (int i=0; i<2*N+1; i++) {
-         
-	      // double mu_e = Ge.MuE(100, n[i])/cm2*volt*s;
-	     // double mu_e = pow(1/Ge.MuEn() + 1/Ge.MuEi(n[i]), -1)/cm2*volt*s;
-	        double mu_e = pow(1/40000 + 1/(1.54e+22*pow(log(1.5e+22/n[i]), -1)/n[i]), -1);
-	      //double mu_h = Ge.MuH(100, n[i])/cm2*volt*s;
-	      double mu_h = pow(1/Ge.MuHn() + 1/Ge.MuHi(n[i]), -1)/cm2*volt*s;
+         double mu_e = 1;//cm2/(Vs)
+	      double mu_h = 1;//cm2/(Vs)
 	      double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
-	      n[i]+=dn_dt*dt;
 	      double dp_dt = -mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
+	      n[i]+=dn_dt*dt;
 	      p[i]+=dp_dt*dt;
-	      if(iStep==0 && i<5) cout<<i<<", "<<n[i]<<", "<<mu_e<<", "<<p[i]<<", "<<mu_h<<endl;
       }
       // update electric field distribution
       for (int i=0; i<2*N+1; i++) {

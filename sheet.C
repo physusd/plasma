@@ -4,6 +4,7 @@ using namespace std;
 #include <TTree.h>
 #include <TFile.h>
 #include <TMath.h>
+#include <TGraph.h>
 using namespace TMath;
 // UNIC
 #include <UNIC/Units.h>
@@ -15,16 +16,17 @@ using namespace MAD;
 // thin flat infinite plasma sheet
 int main(int argc, char** argv)
 {
-   double dt=1e-1;//ns
-   double dx=1;//nm
-   double Ee=100;//volt/cm
+   double dt=1e-3*ns;
+   double dx=1*um;
+   double Ee=1000*volt/cm;
 
-   double mean=0, sigma=10,/*nm*/ height=25;//1/nm2
+   double mean=0, sigma=10000*nm, height=25000/nm/nm;
    bool norm;
 
-   double epsilon=16.2*8.854187817620e-14;//C/V/cm
-   double Q=1.60217657e-19;//C
-   double De=100, Dh=50;//cm2/s
+   GeCrystal ge;
+   double epsilon=ge.Epsilon()*epsilon0;
+   double Q=Abs(electron_charge);
+   double De=100*cm2/s, Dh=50*cm2/s;
 
    // initialize arrays
    const int N = 100;
@@ -32,7 +34,7 @@ int main(int argc, char** argv)
    double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1];
    for (int i=0; i<2*N+1; i++) {
       x[i]=(i-N)*dx;
-      p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,norm=kTRUE); //1/nm3
+      p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,norm=kTRUE);
       E[i]=Ee;
    }
    double dp[2*N+1], dn[2*N+1], dE[2*N+1];
@@ -52,6 +54,9 @@ int main(int argc, char** argv)
    d2p[2*N] = dp[2*N]-dp[2*N-1];
    d2n[2*N] = dn[2*N]-dn[2*N-1];
 
+   double phi[2*N+1]; // weighting potential
+   for (int i=0; i<2*N+1; i++) phi[i]=float(i)/2/N;
+
    // output
    TFile *output = new TFile("sheet.root","recreate");
    TTree *t = new TTree("t","time slices");
@@ -64,24 +69,36 @@ int main(int argc, char** argv)
    t->Branch("dE",dE,Form("dE[%d]/D",2*N+1));
    t->Branch("d2p",d2p,Form("d2p[%d]/D",2*N+1));
    t->Branch("d2n",d2n,Form("d2n[%d]/D",2*N+1));
+   // save units into tree
+   double CM3=cm3, CM=cm, UM=um, V=volt, SEC=s, NS=ns, NM=nm;
+   t->Branch("cm3",&CM3,"cm3/D");
+   t->Branch("V",&V,"V/D");
+   t->Branch("cm",&CM,"cm/D");
+   t->Branch("um",&UM,"um/D");
+   t->Branch("nm",&NM,"nm/D");
+   t->Branch("ns",&NS,"ns/D");
+   t->Branch("s",&SEC,"s/D");
+
+   int iStep=0, nSteps = 100;
+   double time[1000]={0}, charge[1000]={0};
 
    // evolve
-   int iStep=0, nSteps = 100;
    if (argc>1) nSteps = atoi(argv[1]);
-   double mu_e=40000;
-   double mu_h=40000;
+   double mu_e=1350*cm2/volt/s;
+   double mu_h=1350*cm2/volt/s;
    while (iStep<nSteps) {
       t->Fill();
+      // update charge
+      for (int i=0; i<2*N+1; i++) {
+         charge[iStep]+=(p[i]-n[i])*phi[i];
+      }
+      time[iStep]=iStep*dt;
       // update electron and hole distributions
       for (int i=0; i<2*N+1; i++) {
-         if (n[i]>1e-3)
-            mu_e = 2.14e36/Power(n[i]*1e21,1.82);//cm2/(Vs)
-         if (p[i]>1e-3)
-            mu_h = 2.14e36/Power(p[i]*1e21,1.82);//cm2/(Vs)
-	      double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx); // 1e7/nm3/s
-	      double dp_dt = -mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
-         dn_dt+=De*d2n[i]/dx/dx/1e7; // 1e7/nm3/s
-         dp_dt+=Dh*d2p[i]/dx/dx/1e7;
+	      double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
+	      double dp_dt =-mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
+         dn_dt+=De*d2n[i]/dx/dx;
+         dp_dt+=Dh*d2p[i]/dx/dx;
 	      n[i]+=dn_dt*dt;
 	      p[i]+=dp_dt*dt;
       }
@@ -90,7 +107,7 @@ int main(int argc, char** argv)
          E[i]=0;
          for (int j=0; j<i; j++) E[i]+=p[j]-n[j];
          for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
-         E[i]/=(2*epsilon/Q/dx/1e-7);
+         E[i]/=(2*epsilon/Q/dx);
          E[i]+=Ee;
       }
       // update slopes
@@ -109,9 +126,14 @@ int main(int argc, char** argv)
       }
       d2p[2*N] = dp[2*N]-dp[2*N-1];
       d2n[2*N] = dn[2*N]-dn[2*N-1];
+
       iStep++;
    }
    t->Write("t",6);
+
+   TGraph *g = new TGraph(nSteps,time,charge);
+   g->Write("g");
+
    output->Close();
 
    return 0;

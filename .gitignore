@@ -34,3 +34,9 @@
 *Dict.*
 *.rootmap
 *.root
+
+# pictures
+*.pdf
+*.ps
+*.jpg
+*.png

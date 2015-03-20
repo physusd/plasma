@@ -16,17 +16,17 @@ using namespace MAD;
 // thin flat infinite plasma sheet
 int main(int argc, char** argv)
 {
-   double dt=1e-3*ns;
-   double dx=1*um;
+   double dt=1e-12*ns;
+   double dx=1*nm;
    double Ee=1000*volt/cm;
 
-   double mean=0, sigma=10000*nm, height=25000/nm/nm;
+   double mean=0, sigma=10*nm, height=25/nm/nm;
    bool norm;
 
    GeCrystal ge;
    double epsilon=ge.Epsilon()*epsilon0;
    double Q=Abs(electron_charge);
-   double De=100*cm2/s, Dh=50*cm2/s;
+   //double De=100*cm2/s, Dh=50*cm2/s;
 
    // initialize arrays
    const int N = 100;
@@ -69,6 +69,8 @@ int main(int argc, char** argv)
    t->Branch("dE",dE,Form("dE[%d]/D",2*N+1));
    t->Branch("d2p",d2p,Form("d2p[%d]/D",2*N+1));
    t->Branch("d2n",d2n,Form("d2n[%d]/D",2*N+1));
+   t->Branch("dx",&dx,"dx/D");
+   t->Branch("dt",&dt,"dt/D");
    // save units into tree
    double CM3=cm3, CM=cm, UM=um, V=volt, SEC=s, NS=ns, NM=nm;
    t->Branch("cm3",&CM3,"cm3/D");
@@ -78,14 +80,18 @@ int main(int argc, char** argv)
    t->Branch("nm",&NM,"nm/D");
    t->Branch("ns",&NS,"ns/D");
    t->Branch("s",&SEC,"s/D");
+   t->Branch("eps",&epsilon,"eps/D");
+   t->Branch("q",&Q,"q/D");
 
    int iStep=0, nSteps = 100;
    double time[1000]={0}, charge[1000]={0};
 
    // evolve
    if (argc>1) nSteps = atoi(argv[1]);
-   double mu_e=1350*cm2/volt/s;
-   double mu_h=1350*cm2/volt/s;
+   double mu_e=40000*cm2/volt/s;
+   double mu_h=40000*cm2/volt/s;
+   t->Branch("mue",&mu_e,"mue/D");
+   t->Branch("muh",&mu_h,"muh/D");
    while (iStep<nSteps) {
       t->Fill();
       // update charge
@@ -97,8 +103,8 @@ int main(int argc, char** argv)
       for (int i=0; i<2*N+1; i++) {
 	      double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
 	      double dp_dt =-mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
-         dn_dt+=De*d2n[i]/dx/dx;
-         dp_dt+=Dh*d2p[i]/dx/dx;
+         //dn_dt+=De*d2n[i]/dx/dx;
+         //dp_dt+=Dh*d2p[i]/dx/dx;
 	      n[i]+=dn_dt*dt;
 	      p[i]+=dp_dt*dt;
       }
@@ -109,6 +115,7 @@ int main(int argc, char** argv)
          for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
          E[i]/=(2*epsilon/Q/dx);
          E[i]+=Ee;
+         if (E[i]<0) E[i]=0; // large dt may over evolve things
       }
       // update slopes
       for (int i=0; i<2*N; i++) {

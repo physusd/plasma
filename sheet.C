@@ -16,11 +16,11 @@ using namespace MAD;
 // thin flat infinite plasma sheet
 int main(int argc, char** argv)
 {
-   double dt=1e-12*ns;
-   double dx=1*nm;
+   double dt=1e-4*ns; // large dt causes E to decrease too fast
+   double dx=5*nm; // large dx may cause asymmetry 
    double Ee=1000*volt/cm;
 
-   double mean=0, sigma=10*nm, height=25/nm/nm;
+   double mean=0, sigma=5*um, height=0.05/nm/nm;
    bool norm;
 
    GeCrystal ge;
@@ -29,7 +29,7 @@ int main(int argc, char** argv)
    //double De=100*cm2/s, Dh=50*cm2/s;
 
    // initialize arrays
-   const int N = 100;
+   const int N = 20000;
    // p and n are number densities
    double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1];
    for (int i=0; i<2*N+1; i++) {
@@ -88,8 +88,8 @@ int main(int argc, char** argv)
 
    // evolve
    if (argc>1) nSteps = atoi(argv[1]);
-   double mu_e=40000*cm2/volt/s;
-   double mu_h=40000*cm2/volt/s;
+   double mu_e=1350*cm2/volt/s;
+   double mu_h=1350*cm2/volt/s;
    t->Branch("mue",&mu_e,"mue/D");
    t->Branch("muh",&mu_h,"muh/D");
    while (iStep<nSteps) {
@@ -112,7 +112,7 @@ int main(int argc, char** argv)
       for (int i=0; i<2*N+1; i++) {
          E[i]=0;
          for (int j=0; j<i; j++) E[i]+=p[j]-n[j];
-         for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
+         for (int j=i; j<2*N+1; j++) E[i]+=n[j]-p[j];
          E[i]/=(2*epsilon/Q/dx);
          E[i]+=Ee;
          if (E[i]<0) E[i]=0; // large dt may over evolve things

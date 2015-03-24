@@ -16,11 +16,12 @@ using namespace MAD;
 // thin flat infinite plasma sheet
 int main(int argc, char** argv)
 {
-   double dt=1e-4*ns; // large dt causes E to decrease too fast
-   double dx=5*nm; // large dx may cause asymmetry 
+   double dt=1e-9*ns; // large dt causes E to decrease too fast
+   double dx=0.1*nm; // large dx may cause asymmetry 
    double Ee=1000*volt/cm;
 
-   double mean=0, sigma=5*um, height=0.05/nm/nm;
+   //double mean=0, sigma=5*um, height=0.05/nm/nm; // Si
+   double mean=0, sigma=3*nm, height=8e-4/nm/nm; // Ge
    bool norm;
 
    GeCrystal ge;
@@ -29,7 +30,7 @@ int main(int argc, char** argv)
    //double De=100*cm2/s, Dh=50*cm2/s;
 
    // initialize arrays
-   const int N = 20000;
+   const int N = 500;
    // p and n are number densities
    double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1];
    for (int i=0; i<2*N+1; i++) {
@@ -37,22 +38,23 @@ int main(int argc, char** argv)
       p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,norm=kTRUE);
       E[i]=Ee;
    }
+   // slopes
    double dp[2*N+1], dn[2*N+1], dE[2*N+1];
-   for (int i=0; i<2*N; i++) {
-      dp[i] = p[i+1]-p[i];
-      dn[i] = n[i+1]-n[i];
-      dE[i] = E[i+1]-E[i];
+   for (int i=1; i<2*N; i++) {
+      dp[i] = (p[i+1]-p[i-1])/2;
+      dn[i] = (n[i+1]-n[i-1])/2;
+      dE[i] = (E[i+1]-E[i-1])/2;
    }
-   dp[2*N] = p[2*N]-p[2*N-1];
-   dn[2*N] = n[2*N]-n[2*N-1];
-   dE[2*N] = E[2*N]-E[2*N-1];
+   dp[2*N] = dp[0] = 0;
+   dn[2*N] = dn[0] = 0;
+   dE[2*N] = dE[0] = 0;
    double d2p[2*N+1], d2n[2*N+1];
-   for (int i=0; i<2*N; i++) {
-      d2p[i] = dp[i+1]-dp[i];
-      d2n[i] = dn[i+1]-dn[i];
+   for (int i=1; i<2*N; i++) {
+      d2p[i] = (dp[i+1]-dp[i-1])/2;
+      d2n[i] = (dn[i+1]-dn[i-1])/2;
    }
-   d2p[2*N] = dp[2*N]-dp[2*N-1];
-   d2n[2*N] = dn[2*N]-dn[2*N-1];
+   d2p[2*N] = d2p[0] = 0;
+   d2n[2*N] = d2n[0] = 0;
 
    double phi[2*N+1]; // weighting potential
    for (int i=0; i<2*N+1; i++) phi[i]=float(i)/2/N;
@@ -88,8 +90,10 @@ int main(int argc, char** argv)
 
    // evolve
    if (argc>1) nSteps = atoi(argv[1]);
-   double mu_e=1350*cm2/volt/s;
-   double mu_h=1350*cm2/volt/s;
+   //double mu_e=1350*cm2/volt/s; // Si
+   //double mu_h=1350*cm2/volt/s; // Si
+   double mu_e=70*cm2/volt/s; // Ge
+   double mu_h=70*cm2/volt/s; // Ge
    t->Branch("mue",&mu_e,"mue/D");
    t->Branch("muh",&mu_h,"muh/D");
    while (iStep<nSteps) {
@@ -112,27 +116,27 @@ int main(int argc, char** argv)
       for (int i=0; i<2*N+1; i++) {
          E[i]=0;
          for (int j=0; j<i; j++) E[i]+=p[j]-n[j];
-         for (int j=i; j<2*N+1; j++) E[i]+=n[j]-p[j];
+         for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
          E[i]/=(2*epsilon/Q/dx);
          E[i]+=Ee;
          if (E[i]<0) E[i]=0; // large dt may over evolve things
       }
       // update slopes
-      for (int i=0; i<2*N; i++) {
-         dp[i] = p[i+1]-p[i];
-         dn[i] = n[i+1]-n[i];
-         dE[i] = E[i+1]-E[i];
+      for (int i=1; i<2*N; i++) {
+         dp[i] = (p[i+1]-p[i-1])/2;
+         dn[i] = (n[i+1]-n[i-1])/2;
+         dE[i] = (E[i+1]-E[i-1])/2;
       }
-      dp[2*N] = p[2*N]-p[2*N-1];
-      dn[2*N] = n[2*N]-n[2*N-1];
-      dE[2*N] = E[2*N]-E[2*N-1];
+      dp[2*N] = dp[0] = 0;
+      dn[2*N] = dn[0] = 0;
+      dE[2*N] = dE[0] = 0;
       // update second derivative
-      for (int i=0; i<2*N; i++) {
-         d2p[i] = dp[i+1]-dp[i];
-         d2n[i] = dn[i+1]-dn[i];
+      for (int i=1; i<2*N; i++) {
+         d2p[i] = (dp[i+1]-dp[i-1])/2;
+         d2n[i] = (dn[i+1]-dn[i-1])/2;
       }
-      d2p[2*N] = dp[2*N]-dp[2*N-1];
-      d2n[2*N] = dn[2*N]-dn[2*N-1];
+      d2p[2*N] = d2p[0] = 0;
+      d2n[2*N] = d2n[0] = 0;
 
       iStep++;
    }

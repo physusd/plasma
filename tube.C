@@ -16,10 +16,10 @@ using namespace MAD;
 // thin plasma tube
 int main(int argc, char** argv)
 {
-   double dt=0.1*ns;
+   double dt=0.001*ns;
    double dx=0.1*nm; // large dx may cause asymmetry 
    double Ee=100*volt/cm;
-
+  // double Ee=100;
    double R=1e-6*cm, mean=0, sigma=R/3, height=300./(Pi()*R*R);
    bool norm;
 
@@ -36,6 +36,8 @@ int main(int argc, char** argv)
       x[i]=(i-N)*dx;
       p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,norm=kTRUE);
       E[i]=Ee;
+    if(i<10) cout<<"E["<<i<<"] = "<<E[i]<<endl;
+
    }
    // slopes
    double dp[2*N+1], dn[2*N+1], dE[2*N+1];
@@ -113,10 +115,11 @@ int main(int argc, char** argv)
       for (int i=0; i<2*N+1; i++) {
          E[i]=0;
          for (int j=0; j<i; j++) E[i]+=p[j]-n[j];
-         for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
-         E[i]/=(2*epsilon/Q/dx);
+	 for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
+	 // E[i]/=(2*epsilon/Q/dx);
+	 E[i]/=(2*epsilon/(Q*dx*(1-x[i]/sqrt(x[i]*x[i]+R*R))));
          E[i]+=Ee;
-         if (E[i]<0) E[i]=0; // large dt may over evolve things
+	 if (E[i]<0) E[i]=0; // large dt may over evolve things
       }
       // update slopes
       for (int i=1; i<2*N; i++) {

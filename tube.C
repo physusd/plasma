@@ -16,28 +16,25 @@ using namespace MAD;
 // thin plasma tube
 int main(int argc, char** argv)
 {
-   double dt=0.001*ns;
-   double dx=0.1*nm; // large dx may cause asymmetry 
+   double dt=1e-7*ns; // large dt causes E to decrease too fast
+   double dx=0.2*nm; // large dx may cause asymmetry 
    double Ee=100*volt/cm;
-  // double Ee=100;
-   double R=1e-6*cm, mean=0, sigma=R/3, height=300./(Pi()*R*R);
+   double R=5e-7*cm, mean=0, sigma=R/3, height=300./(Pi()*R*R);
    bool norm;
 
    GeCrystal ge;
    double epsilon=ge.Epsilon()*epsilon0;
    double Q=Abs(electron_charge);
-   //double De=100*cm2/s, Dh=50*cm2/s;
-
+   double De=5*cm2/s, Dh=5*cm2/s;
+  // double De=0.46*cm2/s, Dh=0.46*cm2/s;
    // initialize arrays
-   const int N = 500;
+   const int N = 100;
    // p and n are number densities
    double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1];
    for (int i=0; i<2*N+1; i++) {
       x[i]=(i-N)*dx;
       p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,norm=kTRUE);
       E[i]=Ee;
-    if(i<10) cout<<"E["<<i<<"] = "<<E[i]<<endl;
-
    }
    // slopes
    double dp[2*N+1], dn[2*N+1], dE[2*N+1];
@@ -60,6 +57,13 @@ int main(int argc, char** argv)
    double phi[2*N+1]; // weighting potential
    for (int i=0; i<2*N+1; i++) phi[i]=float(i)/2/N;
 
+   //Transverse diffusion 
+   double Re[2*N+1], Rh[2*N+1];
+   for (int i=0; i<2*N+1; i++){
+      Re[i]=(18*n[i]*De/R/R)*((18*De*i*dt/R/R)+1);
+      Rh[i]=(18*n[i]*Dh/R/R)*((18*Dh*i*dt/R/R)+1);
+   }
+
    // output
    TFile *output = new TFile("tube.root","recreate");
    TTree *t = new TTree("t","time slices");
@@ -72,11 +76,14 @@ int main(int argc, char** argv)
    t->Branch("dE",dE,Form("dE[%d]/D",2*N+1));
    t->Branch("d2p",d2p,Form("d2p[%d]/D",2*N+1));
    t->Branch("d2n",d2n,Form("d2n[%d]/D",2*N+1));
+   t->Branch("Re",Re,Form("Re[%d]/D",2*N+1));
+   t->Branch("Rh",Rh,Form("Rh[%d]/D",2*N+1));
    t->Branch("dx",&dx,"dx/D");
    t->Branch("dt",&dt,"dt/D");
    // save units into tree
-   double CM3=cm3, CM=cm, UM=um, V=volt, SEC=s, NS=ns, NM=nm;
+   double CM3=cm3, CM2=cm2, CM=cm, UM=um, V=volt, SEC=s, NS=ns, NM=nm;
    t->Branch("cm3",&CM3,"cm3/D");
+   t->Branch("cm2",&CM2,"cm2/D");
    t->Branch("V",&V,"V/D");
    t->Branch("cm",&CM,"cm/D");
    t->Branch("um",&UM,"um/D");
@@ -105,9 +112,11 @@ int main(int argc, char** argv)
       // update electron and hole distributions
       for (int i=0; i<2*N+1; i++) {
 	      double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
-	      double dp_dt =-mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
-         //dn_dt+=De*d2n[i]/dx/dx;
-         //dp_dt+=Dh*d2p[i]/dx/dx;
+	      double dp_dt = -mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
+         dn_dt+=De*d2n[i]/dx/dx; //Longitudinal diffusion (electron)
+         dp_dt+=Dh*d2p[i]/dx/dx; //Longitudinal diffusion (hole)
+         dn_dt-=Re[i]; //Transverse diffusion (electron)
+         dp_dt-=Rh[i]; //Transverse diffusion (hole)
 	      n[i]+=dn_dt*dt;
 	      p[i]+=dp_dt*dt;
       }
@@ -115,11 +124,12 @@ int main(int argc, char** argv)
       for (int i=0; i<2*N+1; i++) {
          E[i]=0;
          for (int j=0; j<i; j++) E[i]+=p[j]-n[j];
-	 for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
-	 // E[i]/=(2*epsilon/Q/dx);
-	 E[i]/=(2*epsilon/(Q*dx*(1-x[i]/sqrt(x[i]*x[i]+R*R))));
+         for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
+         E[i]/=(2*epsilon/(Q*dx*(1-Abs(x[i])/sqrt(x[i]*x[i]+R*R))));
+        // if (iStep==1&&i<10)cout<<"E["<<i<<"] = "<<E[i]<<endl;
+        // cout<<(1-Abs(x[i])/sqrt(x[i]*x[i]+R*R))<<endl;
          E[i]+=Ee;
-	 if (E[i]<0) E[i]=0; // large dt may over evolve things
+         if (E[i]<0) E[i]=0; // large dt may over evolve things
       }
       // update slopes
       for (int i=1; i<2*N; i++) {
@@ -137,6 +147,12 @@ int main(int argc, char** argv)
       }
       d2p[2*N] = d2p[0] = 0;
       d2n[2*N] = d2n[0] = 0;
+
+      //update transverse diffusion
+      for (int i=0; i<2*N+1; i++){
+         Re[i]=(18*n[i]*De/R/R)*((18*De*i*dt/R/R)+1);
+         Rh[i]=(18*n[i]*Dh/R/R)*((18*Dh*i*dt/R/R)+1);
+      }
 
       iStep++;
    }

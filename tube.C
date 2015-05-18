@@ -16,7 +16,7 @@ using namespace MAD;
 // thin plasma tube
 int main(int argc, char** argv)
 {
-   double dt=1e-7*ns; // large dt causes E to decrease too fast
+   double dt=1.2e-8*ns; // large dt causes E to decrease too fast
    double dx=0.2*nm; // large dx may cause asymmetry 
    double Ee=100*volt/cm;
    double R=5e-7*cm, mean=0, sigma=R/3, height=300./(Pi()*R*R);
@@ -25,10 +25,10 @@ int main(int argc, char** argv)
    GeCrystal ge;
    double epsilon=ge.Epsilon()*epsilon0;
    double Q=Abs(electron_charge);
-   double De=5*cm2/s, Dh=5*cm2/s;
+   double De=50*cm2/s, Dh=50*cm2/s;
   // double De=0.46*cm2/s, Dh=0.46*cm2/s;
    // initialize arrays
-   const int N = 100;
+   const int N = 500;
    // p and n are number densities
    double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1];
    for (int i=0; i<2*N+1; i++) {
@@ -60,8 +60,8 @@ int main(int argc, char** argv)
    //Transverse diffusion 
    double Re[2*N+1], Rh[2*N+1];
    for (int i=0; i<2*N+1; i++){
-      Re[i]=(18*n[i]*De/R/R)*((18*De*i*dt/R/R)+1);
-      Rh[i]=(18*n[i]*Dh/R/R)*((18*Dh*i*dt/R/R)+1);
+      Re[i]=18*n[i]*De/R/R;
+      Rh[i]=18*p[i]*Dh/R/R;
    }
 
    // output
@@ -150,8 +150,8 @@ int main(int argc, char** argv)
 
       //update transverse diffusion
       for (int i=0; i<2*N+1; i++){
-         Re[i]=(18*n[i]*De/R/R)*((18*De*i*dt/R/R)+1);
-         Rh[i]=(18*n[i]*Dh/R/R)*((18*Dh*i*dt/R/R)+1);
+         Re[i]=(18*n[i]*De/R/R)*((18*De*iStep*dt/R/R)+1);
+         Rh[i]=(18*p[i]*Dh/R/R)*((18*Dh*iStep*dt/R/R)+1);
       }
 
       iStep++;

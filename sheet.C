@@ -16,12 +16,12 @@ using namespace MAD;
 // thin flat infinite plasma sheet
 int main(int argc, char** argv)
 {
-   double dt=1e-9*ns; // large dt causes E to decrease too fast
+   double dt=1e-7*ns; // large dt causes E to decrease too fast
    double dx=0.1*nm; // large dx may cause asymmetry 
-   double Ee=1000*volt/cm;
+   double Ee=10000*volt/cm;
 
    //double mean=0, sigma=5*um, height=0.05/nm/nm; // Si
-   double mean=0, sigma=3*nm, height=8e-4/nm/nm; // Ge
+   double mean=0, sigma=3*nm, height=8e-8/nm/nm; // Ge
    bool norm;
 
    GeCrystal ge;
@@ -92,8 +92,8 @@ int main(int argc, char** argv)
    if (argc>1) nSteps = atoi(argv[1]);
    //double mu_e=1350*cm2/volt/s; // Si
    //double mu_h=1350*cm2/volt/s; // Si
-   double mu_e=70*cm2/volt/s; // Ge
-   double mu_h=70*cm2/volt/s; // Ge
+   double mu_e=40000*cm2/volt/s; // Ge
+   double mu_h=40000*cm2/volt/s; // Ge
    t->Branch("mue",&mu_e,"mue/D");
    t->Branch("muh",&mu_h,"muh/D");
    while (iStep<nSteps) {

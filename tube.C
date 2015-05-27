@@ -16,36 +16,43 @@ using namespace MAD;
 // thin plasma tube
 int main(int argc, char** argv)
 {
-   double dt=1.2e-8*ns; // large dt causes E to decrease too fast
-   double dx=0.2*nm; // large dx may cause asymmetry 
-   double Ee=100*volt/cm;
-   double R=5e-7*cm, mean=0, sigma=R/3, height=300./(Pi()*R*R);
+   double dt=1e-5*ns; // large dt causes E to decrease too fast
+   double dx=2*nm; // large dx may cause asymmetry 
+   double Ee=1000*volt/cm;
+   double R=1e-6*cm, mean=0, sigma=R/3, height=330./(Pi()*R*R);
    bool norm;
 
    GeCrystal ge;
    double epsilon=ge.Epsilon()*epsilon0;
    double Q=Abs(electron_charge);
-   double De=50*cm2/s, Dh=50*cm2/s;
-  // double De=0.46*cm2/s, Dh=0.46*cm2/s;
+   double De=0.5*cm2/s, Dh=0.5*cm2/s;
+   
    // initialize arrays
-   const int N = 500;
+   const int N = 50;
    // p and n are number densities
-   double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1];
+   double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1], pE[2*N+1],nE[2*N+1];
    for (int i=0; i<2*N+1; i++) {
       x[i]=(i-N)*dx;
       p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,norm=kTRUE);
       E[i]=Ee;
+      pE[i]=p[i]*E[i];
+      nE[i]=n[i]*E[i];
    }
    // slopes
-   double dp[2*N+1], dn[2*N+1], dE[2*N+1];
+   double dp[2*N+1], dn[2*N+1], dE[2*N+1], dpE[2*N+1], dnE[2*N+1];
    for (int i=1; i<2*N; i++) {
       dp[i] = (p[i+1]-p[i-1])/2;
       dn[i] = (n[i+1]-n[i-1])/2;
       dE[i] = (E[i+1]-E[i-1])/2;
+      dpE[i] = (pE[i+1]-pE[i-1])/2;
+      dnE[i] = (nE[i+1]-nE[i-1])/2;
    }
    dp[2*N] = dp[0] = 0;
    dn[2*N] = dn[0] = 0;
    dE[2*N] = dE[0] = 0;
+   dpE[2*N] = dpE[0] = 0;
+   dnE[2*N] = dnE[0] = 0;
+
    double d2p[2*N+1], d2n[2*N+1];
    for (int i=1; i<2*N; i++) {
       d2p[i] = (dp[i+1]-dp[i-1])/2;
@@ -71,9 +78,13 @@ int main(int argc, char** argv)
    t->Branch("p",p,Form("p[%d]/D",2*N+1));
    t->Branch("n",n,Form("n[%d]/D",2*N+1));
    t->Branch("E",E,Form("E[%d]/D",2*N+1));
+   t->Branch("pE",pE,Form("pE[%d]/D",2*N+1));
+   t->Branch("nE",nE,Form("nE[%d]/D",2*N+1));
    t->Branch("dp",dp,Form("dp[%d]/D",2*N+1));
    t->Branch("dn",dn,Form("dn[%d]/D",2*N+1));
    t->Branch("dE",dE,Form("dE[%d]/D",2*N+1));
+   t->Branch("dpE",dpE,Form("dpE[%d]/D",2*N+1));
+   t->Branch("dnE",dnE,Form("dnE[%d]/D",2*N+1));
    t->Branch("d2p",d2p,Form("d2p[%d]/D",2*N+1));
    t->Branch("d2n",d2n,Form("d2n[%d]/D",2*N+1));
    t->Branch("Re",Re,Form("Re[%d]/D",2*N+1));
@@ -111,14 +122,18 @@ int main(int argc, char** argv)
       time[iStep]=iStep*dt;
       // update electron and hole distributions
       for (int i=0; i<2*N+1; i++) {
-	      double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
-	      double dp_dt = -mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
+	     double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
+	     double dp_dt = -mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
+	     // double dn_dt = mu_e*dnE[i]/dx;
+	     // double dp_dt = -mu_h*dpE[i]/dx;
+        //if (dpE[i]<0)
+        //cout<<iStep<<", "<<i<<": "<<dpE[i]<<endl;
          dn_dt+=De*d2n[i]/dx/dx; //Longitudinal diffusion (electron)
          dp_dt+=Dh*d2p[i]/dx/dx; //Longitudinal diffusion (hole)
          dn_dt-=Re[i]; //Transverse diffusion (electron)
          dp_dt-=Rh[i]; //Transverse diffusion (hole)
-	      n[i]+=dn_dt*dt;
-	      p[i]+=dp_dt*dt;
+         n[i]+=dn_dt*dt;
+         p[i]+=dp_dt*dt;
       }
       // update electric field distribution
       for (int i=0; i<2*N+1; i++) {
@@ -131,15 +146,26 @@ int main(int argc, char** argv)
          E[i]+=Ee;
          if (E[i]<0) E[i]=0; // large dt may over evolve things
       }
+      // update pE[i]and nE[i]
+      for (int i=0; i<2*N+1; i++){
+         pE[i] = p[i]*E[i];
+         nE[i] = n[i]*E[i];
+
+      }
       // update slopes
       for (int i=1; i<2*N; i++) {
          dp[i] = (p[i+1]-p[i-1])/2;
          dn[i] = (n[i+1]-n[i-1])/2;
          dE[i] = (E[i+1]-E[i-1])/2;
+         dpE[i] =(pE[i+1]-pE[i-1])/2;
+         dnE[i] =(nE[i+1]-nE[i-1])/2;
       }
       dp[2*N] = dp[0] = 0;
       dn[2*N] = dn[0] = 0;
       dE[2*N] = dE[0] = 0;
+      dpE[2*N] = dpE[0] = 0;
+      dnE[2*N] = dnE[0] = 0;
+
       // update second derivative
       for (int i=1; i<2*N; i++) {
          d2p[i] = (dp[i+1]-dp[i-1])/2;

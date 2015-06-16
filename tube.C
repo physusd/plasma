@@ -14,26 +14,29 @@ using namespace UNIC;
 #include <MAD/GeCrystal.h>
 using namespace MAD;
 // thin plasma tube
+//GeCrystal *ge = new GeCrystal;
 int main(int argc, char** argv)
 {
-   double dt=1e-5*ns; // large dt causes E to decrease too fast
-   double dx=2*nm; // large dx may cause asymmetry 
+   double dt=1e-7*ns; // large dt causes E to decrease too fast
+   double dx=0.5*nm; // large dx may cause asymmetry 
    double Ee=1000*volt/cm;
-   double R=1e-6*cm, mean=0, sigma=R/3, height=330./(Pi()*R*R);
+   double R=1e-6*cm, mean=0, sigma=R/3, height=300./(Pi()*R*R);
    bool norm;
 
    GeCrystal ge;
    double epsilon=ge.Epsilon()*epsilon0;
    double Q=Abs(electron_charge);
-   double De=0.5*cm2/s, Dh=0.5*cm2/s;
-   
+   double De=0.046*cm2/s, Dh=0.046*cm2/s;
+
    // initialize arrays
-   const int N = 50;
+   const int N = 500;
    // p and n are number densities
    double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1], pE[2*N+1],nE[2*N+1];
    for (int i=0; i<2*N+1; i++) {
       x[i]=(i-N)*dx;
       p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,norm=kTRUE);
+     //if (i==N)
+     // cout<<"i= "<<i<<", p[i]"<<p[i]/(1/cm3)<<endl;
       E[i]=Ee;
       pE[i]=p[i]*E[i];
       nE[i]=n[i]*E[i];
@@ -78,41 +81,42 @@ int main(int argc, char** argv)
    t->Branch("p",p,Form("p[%d]/D",2*N+1));
    t->Branch("n",n,Form("n[%d]/D",2*N+1));
    t->Branch("E",E,Form("E[%d]/D",2*N+1));
-   t->Branch("pE",pE,Form("pE[%d]/D",2*N+1));
-   t->Branch("nE",nE,Form("nE[%d]/D",2*N+1));
-   t->Branch("dp",dp,Form("dp[%d]/D",2*N+1));
-   t->Branch("dn",dn,Form("dn[%d]/D",2*N+1));
-   t->Branch("dE",dE,Form("dE[%d]/D",2*N+1));
-   t->Branch("dpE",dpE,Form("dpE[%d]/D",2*N+1));
-   t->Branch("dnE",dnE,Form("dnE[%d]/D",2*N+1));
-   t->Branch("d2p",d2p,Form("d2p[%d]/D",2*N+1));
-   t->Branch("d2n",d2n,Form("d2n[%d]/D",2*N+1));
-   t->Branch("Re",Re,Form("Re[%d]/D",2*N+1));
-   t->Branch("Rh",Rh,Form("Rh[%d]/D",2*N+1));
-   t->Branch("dx",&dx,"dx/D");
-   t->Branch("dt",&dt,"dt/D");
+//   t->Branch("pE",pE,Form("pE[%d]/D",2*N+1));
+//   t->Branch("nE",nE,Form("nE[%d]/D",2*N+1));
+//   t->Branch("dp",dp,Form("dp[%d]/D",2*N+1));
+//   t->Branch("dn",dn,Form("dn[%d]/D",2*N+1));
+//   t->Branch("dE",dE,Form("dE[%d]/D",2*N+1));
+//   t->Branch("dpE",dpE,Form("dpE[%d]/D",2*N+1));
+//   t->Branch("dnE",dnE,Form("dnE[%d]/D",2*N+1));
+//   t->Branch("d2p",d2p,Form("d2p[%d]/D",2*N+1));
+//   t->Branch("d2n",d2n,Form("d2n[%d]/D",2*N+1));
+//   t->Branch("Re",Re,Form("Re[%d]/D",2*N+1));
+//   t->Branch("Rh",Rh,Form("Rh[%d]/D",2*N+1));
+//   t->Branch("dx",&dx,"dx/D");
+//   t->Branch("dt",&dt,"dt/D");
    // save units into tree
    double CM3=cm3, CM2=cm2, CM=cm, UM=um, V=volt, SEC=s, NS=ns, NM=nm;
    t->Branch("cm3",&CM3,"cm3/D");
    t->Branch("cm2",&CM2,"cm2/D");
    t->Branch("V",&V,"V/D");
    t->Branch("cm",&CM,"cm/D");
-   t->Branch("um",&UM,"um/D");
+//   t->Branch("um",&UM,"um/D");
    t->Branch("nm",&NM,"nm/D");
-   t->Branch("ns",&NS,"ns/D");
+//   t->Branch("ns",&NS,"ns/D");
    t->Branch("s",&SEC,"s/D");
-   t->Branch("eps",&epsilon,"eps/D");
-   t->Branch("q",&Q,"q/D");
+//   t->Branch("eps",&epsilon,"eps/D");
+//   t->Branch("q",&Q,"q/D");
 
    int iStep=0, nSteps = 100;
    double time[1000]={0}, charge[1000]={0};
 
    // evolve
    if (argc>1) nSteps = atoi(argv[1]);
-   double mu_e=70*cm2/volt/s; // Ge
-   double mu_h=70*cm2/volt/s; // Ge
-   t->Branch("mue",&mu_e,"mue/D");
-   t->Branch("muh",&mu_h,"muh/D");
+  // double mu_e=40000*cm2/volt/s; // Ge
+ //  double mu_h=40000*cm2/volt/s; // Ge
+//  t->Branch("mue",&mu_e,"mue/D");
+//  t->Branch("muh",&mu_h,"muh/D");
+ 
    while (iStep<nSteps) {
       t->Fill();
       // update charge
@@ -122,18 +126,23 @@ int main(int argc, char** argv)
       time[iStep]=iStep*dt;
       // update electron and hole distributions
       for (int i=0; i<2*N+1; i++) {
-	     double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
-	     double dp_dt = -mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
-	     // double dn_dt = mu_e*dnE[i]/dx;
-	     // double dp_dt = -mu_h*dpE[i]/dx;
-        //if (dpE[i]<0)
-        //cout<<iStep<<", "<<i<<": "<<dpE[i]<<endl;
-         dn_dt+=De*d2n[i]/dx/dx; //Longitudinal diffusion (electron)
-         dp_dt+=Dh*d2p[i]/dx/dx; //Longitudinal diffusion (hole)
-         dn_dt-=Re[i]; //Transverse diffusion (electron)
-         dp_dt-=Rh[i]; //Transverse diffusion (hole)
+         double dn_dt = ge.Mu('e', n[i])*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
+         double dp_dt = -ge.Mu('h', p[i])*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
+       //  if (dn_dt<0) dn_dt =0;
+       //  if (dp_dt<0) dp_dt =0;
+         // double dn_dt = mu_e*dnE[i]/dx;
+         // double dp_dt = -mu_h*dpE[i]/dx;
+         //if (dpE[i]<0)
+         if(iStep<10 && i==N)
+         cout<<iStep<<", "<<i<<": "<<"n[i]= "<<n[i]/(1/cm3)<<", Mu_e= "<<ge.Mu('e', n[i])/(cm2/V/s)<<", p[i]= "<<p[i]/(1/cm3)<<", Mu_h= "<<ge.Mu('h', p[i])/(cm2/V/s)<<endl;
+        // dn_dt+=De*d2n[i]/dx/dx; //Longitudinal diffusion (electron)
+        // dp_dt+=Dh*d2p[i]/dx/dx; //Longitudinal diffusion (hole)
+        // dn_dt-=Re[i]; //Transverse diffusion (electron)
+        // dp_dt-=Rh[i]; //Transverse diffusion (hole)
          n[i]+=dn_dt*dt;
          p[i]+=dp_dt*dt;
+        // if (n[i]<0) n[i]=0;
+        // if (p[i]<0) p[i]=0;
       }
       // update electric field distribution
       for (int i=0; i<2*N+1; i++) {
@@ -184,8 +193,8 @@ int main(int argc, char** argv)
    }
    t->Write("t",6);
 
-   TGraph *g = new TGraph(nSteps,time,charge);
-   g->Write("g");
+  // TGraph *g = new TGraph(nSteps,time,charge);
+  // g->Write("g");
 
    output->Close();
 

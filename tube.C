@@ -35,8 +35,6 @@ int main(int argc, char** argv)
    for (int i=0; i<2*N+1; i++) {
       x[i]=(i-N)*dx;
       p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,norm=kTRUE);
-     //if (i==N)
-     // cout<<"i= "<<i<<", p[i]"<<p[i]/(1/cm3)<<endl;
       E[i]=Ee;
       pE[i]=p[i]*E[i];
       nE[i]=n[i]*E[i];
@@ -100,20 +98,18 @@ int main(int argc, char** argv)
    t->Branch("cm2",&CM2,"cm2/D");
    t->Branch("V",&V,"V/D");
    t->Branch("cm",&CM,"cm/D");
-//   t->Branch("um",&UM,"um/D");
+   //   t->Branch("um",&UM,"um/D");
    t->Branch("nm",&NM,"nm/D");
-//   t->Branch("ns",&NS,"ns/D");
+   //   t->Branch("ns",&NS,"ns/D");
    t->Branch("s",&SEC,"s/D");
-//   t->Branch("eps",&epsilon,"eps/D");
-//   t->Branch("q",&Q,"q/D");
+   //   t->Branch("eps",&epsilon,"eps/D");
+   //   t->Branch("q",&Q,"q/D");
 
    int iStep=0, nSteps = 100;
    double time[1000]={0}, charge[1000]={0};
 
    // evolve
    if (argc>1) nSteps = atoi(argv[1]);
-  // double mu_e=40000*cm2/volt/s; // Ge
- //  double mu_h=40000*cm2/volt/s; // Ge
 //  t->Branch("mue",&mu_e,"mue/D");
 //  t->Branch("muh",&mu_h,"muh/D");
  
@@ -128,33 +124,23 @@ int main(int argc, char** argv)
       for (int i=0; i<2*N+1; i++) {
          double dn_dt = ge.Mu('e', n[i])*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
          double dp_dt = -ge.Mu('h', p[i])*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
-       //  if (dn_dt<0) dn_dt =0;
-       //  if (dp_dt<0) dp_dt =0;
-         // double dn_dt = mu_e*dnE[i]/dx;
-         // double dp_dt = -mu_h*dpE[i]/dx;
-         //if (dpE[i]<0)
-         if(iStep<10 && i==N)
-         cout<<iStep<<", "<<i<<": "<<"n[i]= "<<n[i]/(1/cm3)<<", Mu_e= "<<ge.Mu('e', n[i])/(cm2/V/s)<<", p[i]= "<<p[i]/(1/cm3)<<", Mu_h= "<<ge.Mu('h', p[i])/(cm2/V/s)<<endl;
-        // dn_dt+=De*d2n[i]/dx/dx; //Longitudinal diffusion (electron)
-        // dp_dt+=Dh*d2p[i]/dx/dx; //Longitudinal diffusion (hole)
-        // dn_dt-=Re[i]; //Transverse diffusion (electron)
-        // dp_dt-=Rh[i]; //Transverse diffusion (hole)
          n[i]+=dn_dt*dt;
          p[i]+=dp_dt*dt;
-        // if (n[i]<0) n[i]=0;
-        // if (p[i]<0) p[i]=0;
       }
       // update electric field distribution
       for (int i=0; i<2*N+1; i++) {
          E[i]=0;
-         for (int j=0; j<i; j++) E[i]+=p[j]-n[j];
-         for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
-         E[i]/=(2*epsilon/(Q*dx*(1-Abs(x[i])/sqrt(x[i]*x[i]+R*R))));
-        // if (iStep==1&&i<10)cout<<"E["<<i<<"] = "<<E[i]<<endl;
-        // cout<<(1-Abs(x[i])/sqrt(x[i]*x[i]+R*R))<<endl;
+         for (int j=0; j<i; j++)
+            E[i]+=(p[j]-n[j])*(1-(i-j)*dx/sqrt((i-j)*(i-j)*dx*dx+R*R));
+         for (int j=i+1; j<2*N+1; j++) 
+            E[i]+=(n[j]-p[j])*(1-(j-i)*dx/sqrt((j-i)*(j-i)*dx*dx+R*R));
+         E[i]*=Q*dx/2/epsilon;
+         if (iStep==(nSteps-1))
+            cout<<"E["<<i<<"] = "<<E[i]<<endl;
          E[i]+=Ee;
          if (E[i]<0) E[i]=0; // large dt may over evolve things
       }
+      
       // update pE[i]and nE[i]
       for (int i=0; i<2*N+1; i++){
          pE[i] = p[i]*E[i];

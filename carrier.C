@@ -64,8 +64,8 @@ int main(int argc, const char *argv[])
       }
       t->Fill();
       for (int i=0; i<n; i++) {
-         xe[i]-=ge.Mu('e',1e21/cm3)*(Ee[i]+E)*dt;
-         xh[i]+=ge.Mu('h',1e21/cm3)*(Eh[i]+E)*dt;
+         xe[i]-=ge.Mu('e',1e21/cm3)*Ee[i]*dt;
+         xh[i]+=ge.Mu('h',1e21/cm3)*Eh[i]*dt;
       }
       iStep++;
    }

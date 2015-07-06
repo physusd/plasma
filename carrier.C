@@ -14,6 +14,26 @@ using namespace UNIC;
 // MAD
 #include <MAD/GeCrystal.h>
 using namespace MAD;
+// drift velocity along <100>, ref. to J. Liu's thesis, p96.
+double v(double E, char type='e')
+{
+   double mu0=40180*cm2/volt/s;
+   double mun=589*cm2/volt/s;
+   double beta=0.72;
+   double E0=493*volt/cm;
+   if (type=='e') {
+      if (E>4000*volt/cm) return 1.26e-2*cm/ns;
+      if (E<4000*volt/cm) return -1.26e-2*cm/ns;
+   } else {
+      mu0=66333*cm2/volt/s;
+      mun=0;
+      beta=0.744;
+      E0=181*volt/cm;
+      if (E>1e7*volt/cm) return 1.2e-2*cm/ns;
+      if (E<-1e7*volt/cm) return -1.2e-2*cm/ns;
+   }
+   return mu0*E/pow(1+pow(E/E0,beta),1/beta) - mun*E;
+}
 // trace movement of individual charge carriers
 int main(int argc, const char *argv[])
 {
@@ -64,8 +84,8 @@ int main(int argc, const char *argv[])
       }
       t->Fill();
       for (int i=0; i<n; i++) {
-         xe[i]-=ge.Mu('e',1e21/cm3)*Ee[i]*dt;
-         xh[i]+=ge.Mu('h',1e21/cm3)*Eh[i]*dt;
+         xe[i]+=v(Ee[i],'e')*dt;
+         xh[i]+=v(Eh[i],'h')*dt;
       }
       iStep++;
    }

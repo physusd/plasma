@@ -14,7 +14,7 @@ using namespace UNIC;
 // MAD
 #include <MAD/GeCrystal.h>
 using namespace MAD;
-const int N = 1000;
+const int N = 2000;
 // df at i
 double d(double *f, int i)
 {
@@ -28,10 +28,10 @@ double d(double *f, int i)
 // thin plasma tube
 int main(int argc, char** argv)
 {
-   double dt=1e-6*ns; // large dt causes E to decrease too fast
-   double dx=0.5*nm; // small dx may cause artificial oscillation
-   double Ee=1000*volt/cm;
-   double R=1e-6*cm, mean=0, sigma=R/3, height=300./(Pi()*R*R);
+   double dt=5e-7*ns; // large dt causes E to decrease too fast
+   double dx=0.2*nm; // small dx may cause artificial oscillation
+   double Ee=500*volt/cm;
+   double R=1.97e-7*cm, mean=0, sigma=R/3, height=84./(Pi()*R*R);
    bool norm;
 
    GeCrystal ge;
@@ -41,7 +41,7 @@ int main(int argc, char** argv)
 
    // initialize arrays
    // p and n are number densities
-   double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1], pE[2*N+1],nE[2*N+1];
+   double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1], pE[2*N+1],nE[2*N+1], T[10000], J[10000];
    if (argc==3) {
       TChain *ti = new TChain("t");
       ti->Add(argv[2]);
@@ -50,6 +50,7 @@ int main(int argc, char** argv)
       ti->SetBranchAddress("n",n);
       ti->SetBranchAddress("E",E);
       ti->GetEntry(ti->GetEntries()-1);
+
    } else {
       for (int i=0; i<2*N+1; i++) {
          x[i]=(i-N)*dx;
@@ -62,6 +63,11 @@ int main(int argc, char** argv)
    for (int i=0; i<2*N+1; i++) {
       pE[i]=p[i]*E[i];
       nE[i]=n[i]*E[i];
+   }
+
+   for (int i=0; i<1000; i++){
+      J[i] = 0;
+      T[i] = 0;
    }
 
    // output
@@ -87,7 +93,7 @@ int main(int argc, char** argv)
    // evolve
    if (argc>1) nSteps = atoi(argv[1]);
    while (iStep<nSteps) {
-      if (iStep%100==0) cout<<iStep<<" steps passed"<<endl;
+      if ((iStep+1)%100==0) cout<<iStep+1<<" steps passed"<<endl;
       t->Fill();
       // update electron and hole distributions
       for (int i=0; i<2*N+1; i++) {
@@ -102,6 +108,35 @@ int main(int argc, char** argv)
          if (n[i]<0) n[i]=0;
          if (p[i]<0) p[i]=0;
       }
+
+      if (iStep<=1000&&(iStep+1)%20==0){
+         double aa = 0; //initialization 
+         for (int i=N; i<2*N+1; i++)
+            aa += (p[i]-n[i]);
+         J[(iStep+1)/20-1] = aa*Q*dx/(iStep+1)/dt/(coulomb/s/cm2);
+         T[(iStep+1)/20-1] = (iStep+1);
+         cout<<"test: "<<(iStep+1)/20-1<<",J: "<<J[(iStep+1)/20-1]<<", T: "<<T[(iStep+1)/20-1]<<endl;
+      }
+
+ if (iStep>1000 && iStep<=2000 && (iStep+1)%100==0){
+          double aa = 0; //initialization 
+          for (int i=N; i<2*N+1; i++)
+             aa += (p[i]-n[i]);
+          J[(iStep+1)/100+39] = aa*Q*dx/(iStep+1)/dt/(coulomb/s/cm2);
+          T[(iStep+1)/100+39] = (iStep+1);
+          cout<<"test: "<<(iStep+1)/100+39<<",J: "<<J[(iStep+1)/100+39]<<", T: "<<T[(iStep+1)/100+39]<<endl;
+                }
+          //
+
+  if (iStep>2000&&(iStep+1)%1000==0){
+            double aa = 0; //initialization 
+            for (int i=N; i<2*N+1; i++)
+               aa += (p[i]-n[i]);
+            J[(iStep+1)/1000+57] = aa*Q*dx/(iStep+1)/dt/(coulomb/s/cm2);
+            T[(iStep+1)/1000+57] = (iStep+1);
+            cout<<"test: "<<(iStep+1)/1000+57<<",J: "<<J[(iStep+1)/1000+57]<<", T: "<<T[(iStep+1)/1000+57]<<endl;
+                  }
+
       // update electric field distribution
       for (int i=0; i<2*N+1; i++) {
          E[i]=0;
@@ -124,6 +159,8 @@ int main(int argc, char** argv)
    }
    t->Write("t",6);
 
+   TGraph *g = new TGraph (nSteps, T, J);
+   g->Write("g");
    output->Close();
 
    return 0;

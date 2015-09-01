@@ -97,10 +97,8 @@ int main(int argc, char** argv)
       t->Fill();
       // update electron and hole distributions
       for (int i=0; i<2*N+1; i++) {
-         //double dn_dt = ge.Mu('e', n[i])*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
-         //double dp_dt = -ge.Mu('h', p[i])*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
          double dn_dt = ge.Mu('e', n[i])*d(nE,i)/dx;
-         double dp_dt = -ge.Mu('h', p[i])*d(pE,i)/dx;
+         double dp_dt =-ge.Mu('h', p[i])*d(pE,i)/dx;
          if (Abs(dn_dt*dt)<1e-10/cm3) dn_dt=0;
          if (Abs(dp_dt*dt)<1e-10/cm3) dp_dt=0;
          n[i]+=dn_dt*dt;
@@ -111,31 +109,27 @@ int main(int argc, char** argv)
 
       if (iStep<=1000&&(iStep+1)%20==0){
          double aa = 0; //initialization 
-         for (int i=N; i<2*N+1; i++)
-            aa += (p[i]-n[i]);
+         for (int i=N; i<2*N+1; i++) aa += (p[i]-n[i]);
          J[(iStep+1)/20-1] = aa*Q*dx/(iStep+1)/dt/(coulomb/s/cm2);
          T[(iStep+1)/20-1] = (iStep+1);
          cout<<"test: "<<(iStep+1)/20-1<<",J: "<<J[(iStep+1)/20-1]<<", T: "<<T[(iStep+1)/20-1]<<endl;
       }
 
- if (iStep>1000 && iStep<=2000 && (iStep+1)%100==0){
-          double aa = 0; //initialization 
-          for (int i=N; i<2*N+1; i++)
-             aa += (p[i]-n[i]);
-          J[(iStep+1)/100+39] = aa*Q*dx/(iStep+1)/dt/(coulomb/s/cm2);
-          T[(iStep+1)/100+39] = (iStep+1);
-          cout<<"test: "<<(iStep+1)/100+39<<",J: "<<J[(iStep+1)/100+39]<<", T: "<<T[(iStep+1)/100+39]<<endl;
-                }
-          //
+      if (iStep>1000 && iStep<=2000 && (iStep+1)%100==0){
+         double aa = 0; //initialization 
+         for (int i=N; i<2*N+1; i++) aa += (p[i]-n[i]);
+         J[(iStep+1)/100+39] = aa*Q*dx/(iStep+1)/dt/(coulomb/s/cm2);
+         T[(iStep+1)/100+39] = (iStep+1);
+         cout<<"test: "<<(iStep+1)/100+39<<",J: "<<J[(iStep+1)/100+39]<<", T: "<<T[(iStep+1)/100+39]<<endl;
+      }
 
-  if (iStep>2000&&(iStep+1)%1000==0){
-            double aa = 0; //initialization 
-            for (int i=N; i<2*N+1; i++)
-               aa += (p[i]-n[i]);
-            J[(iStep+1)/1000+57] = aa*Q*dx/(iStep+1)/dt/(coulomb/s/cm2);
-            T[(iStep+1)/1000+57] = (iStep+1);
-            cout<<"test: "<<(iStep+1)/1000+57<<",J: "<<J[(iStep+1)/1000+57]<<", T: "<<T[(iStep+1)/1000+57]<<endl;
-                  }
+      if (iStep>2000&&(iStep+1)%1000==0){
+         double aa = 0; //initialization 
+         for (int i=N; i<2*N+1; i++) aa += (p[i]-n[i]);
+         J[(iStep+1)/1000+57] = aa*Q*dx/(iStep+1)/dt/(coulomb/s/cm2);
+         T[(iStep+1)/1000+57] = (iStep+1);
+         cout<<"test: "<<(iStep+1)/1000+57<<",J: "<<J[(iStep+1)/1000+57]<<", T: "<<T[(iStep+1)/1000+57]<<endl;
+      }
 
       // update electric field distribution
       for (int i=0; i<2*N+1; i++) {

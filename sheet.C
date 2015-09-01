@@ -13,137 +13,92 @@ using namespace UNIC;
 // MAD
 #include <MAD/GeCrystal.h>
 using namespace MAD;
+
+// parameters
+double dx;
+double dt=5e-7*ns; // large dt causes E to decrease too fast
+double Ee=1000*volt/cm;
+double R=1.97e-7*cm, mean=0, sigma=R/3, height=84./(Pi()*R*R);
+
+const int Nmidd = 50; // # of points in (0,5*sigma)
+const int Nwing = 95; // # of points in (5*sigma, 100*sigma)
+const int Ntotal = 2*(Nmidd + Nwing) + 1;
+
+GeCrystal ge;
+double epsilon=ge.Epsilon()*epsilon0;
+double Q=Abs(electron_charge);
+
+// df at i
+double d(double *f, int i)
+{
+   if (i<1 || i>Ntotal-1) return 0;
+   return (f[i+1]-f[i-1])/2; // 2 points
+   //if (i<2 || i>Ntotal-2) return 0;
+   //return (-f[i+2]+8*f[i+1]-8*f[i-1]+f[i-2])/12; // 4
+   //if (i<4 || i>Ntotal-4) return 0;
+   //return (-f[i+4]-8*f[i+2]+128*f[i+1]-128*f[i-1]+8*f[i-2]+f[i-4])/180; // 6
+}
+
 // thin flat infinite plasma sheet
 int main(int argc, char** argv)
 {
-   double dt=1e-7*ns; // large dt causes E to decrease too fast
-   double dx=0.1*nm; // large dx may cause asymmetry 
-   double Ee=10000*volt/cm;
-
-   //double mean=0, sigma=5*um, height=0.05/nm/nm; // Si
-   double mean=0, sigma=3*nm, height=8e-8/nm/nm; // Ge
-   bool norm;
-
-   GeCrystal ge;
-   double epsilon=ge.Epsilon()*epsilon0;
-   double Q=Abs(electron_charge);
-   //double De=100*cm2/s, Dh=50*cm2/s;
-
    // initialize arrays
-   const int N = 500;
-   // p and n are number densities
-   double x[2*N+1], p[2*N+1], n[2*N+1], E[2*N+1];
-   for (int i=0; i<2*N+1; i++) {
-      x[i]=(i-N)*dx;
-      p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,norm=kTRUE);
+   double x[Ntotal], E[Ntotal], p[Ntotal], n[Ntotal], pE[Ntotal], nE[Ntotal];
+   for (int i=0; i<=Nwing; i++) { // wings
+      dx = sigma;
+      x[i]=-100*sigma + i*dx;
+      x[Ntotal-1-i]= 100*sigma - i*dx;
+      p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,kTRUE);
+      p[Ntotal-1-i]=height*Gaus(x[Ntotal-1-i],mean=0,sigma,kTRUE);
+      n[Ntotal-1-i]=height*Gaus(x[Ntotal-1-i],mean=0,sigma,kTRUE);
+      E[i]=E[Ntotal-1-i]=Ee;
+      pE[i]=p[i]*E[i];
+      nE[i]=n[i]*E[i];
+      pE[Ntotal-1-i]=p[Ntotal-1-i]*E[Ntotal-1-i];
+      nE[Ntotal-1-i]=n[Ntotal-1-i]*E[Ntotal-1-i];
+   }
+   for (int i=Nwing+1; i<Ntotal-Nwing; i++) { // middle
+      dx = sigma/10;
+      x[i]=x[Nwing] + (i-Nwing)*dx;
+      p[i]=n[i]=height*Gaus(x[i],mean=0,sigma,kTRUE);
       E[i]=Ee;
+      pE[i]=p[i]*E[i];
+      nE[i]=n[i]*E[i];
    }
-   // slopes
-   double dp[2*N+1], dn[2*N+1], dE[2*N+1];
-   for (int i=1; i<2*N; i++) {
-      dp[i] = (p[i+1]-p[i-1])/2;
-      dn[i] = (n[i+1]-n[i-1])/2;
-      dE[i] = (E[i+1]-E[i-1])/2;
-   }
-   dp[2*N] = dp[0] = 0;
-   dn[2*N] = dn[0] = 0;
-   dE[2*N] = dE[0] = 0;
-   double d2p[2*N+1], d2n[2*N+1];
-   for (int i=1; i<2*N; i++) {
-      d2p[i] = (dp[i+1]-dp[i-1])/2;
-      d2n[i] = (dn[i+1]-dn[i-1])/2;
-   }
-   d2p[2*N] = d2p[0] = 0;
-   d2n[2*N] = d2n[0] = 0;
-
-   double phi[2*N+1]; // weighting potential
-   for (int i=0; i<2*N+1; i++) phi[i]=float(i)/2/N;
 
    // output
    TFile *output = new TFile("sheet.root","recreate");
    TTree *t = new TTree("t","time slices");
-   t->Branch("x",x,Form("x[%d]/D",2*N+1));
-   t->Branch("p",p,Form("p[%d]/D",2*N+1));
-   t->Branch("n",n,Form("n[%d]/D",2*N+1));
-   t->Branch("E",E,Form("E[%d]/D",2*N+1));
-   t->Branch("dp",dp,Form("dp[%d]/D",2*N+1));
-   t->Branch("dn",dn,Form("dn[%d]/D",2*N+1));
-   t->Branch("dE",dE,Form("dE[%d]/D",2*N+1));
-   t->Branch("d2p",d2p,Form("d2p[%d]/D",2*N+1));
-   t->Branch("d2n",d2n,Form("d2n[%d]/D",2*N+1));
-   t->Branch("dx",&dx,"dx/D");
+   t->Branch("x",x,Form("x[%d]/D",Ntotal));
+   t->Branch("p",p,Form("p[%d]/D",Ntotal));
+   t->Branch("n",n,Form("n[%d]/D",Ntotal));
+   t->Branch("E",E,Form("E[%d]/D",Ntotal));
    t->Branch("dt",&dt,"dt/D");
    // save units into tree
-   double CM3=cm3, CM=cm, UM=um, V=volt, SEC=s, NS=ns, NM=nm;
-   t->Branch("cm3",&CM3,"cm3/D");
+   double V=volt, nanosec=ns, nanometer=nm;
    t->Branch("V",&V,"V/D");
-   t->Branch("cm",&CM,"cm/D");
-   t->Branch("um",&UM,"um/D");
-   t->Branch("nm",&NM,"nm/D");
-   t->Branch("ns",&NS,"ns/D");
-   t->Branch("s",&SEC,"s/D");
-   t->Branch("eps",&epsilon,"eps/D");
-   t->Branch("q",&Q,"q/D");
-
-   int iStep=0, nSteps = 100;
-   double time[1000]={0}, charge[1000]={0};
+   t->Branch("nm",&nanometer,"nm/D");
+   t->Branch("ns",&nanosec,"ns/D");
 
    // evolve
+   int iStep=0, nSteps = 100;
    if (argc>1) nSteps = atoi(argv[1]);
-   //double mu_e=1350*cm2/volt/s; // Si
-   //double mu_h=1350*cm2/volt/s; // Si
-   double mu_e=40000*cm2/volt/s; // Ge
-   double mu_h=40000*cm2/volt/s; // Ge
-   t->Branch("mue",&mu_e,"mue/D");
-   t->Branch("muh",&mu_h,"muh/D");
    while (iStep<nSteps) {
       t->Fill();
-      // update charge
-      for (int i=0; i<2*N+1; i++) {
-         charge[iStep]+=(p[i]-n[i])*phi[i];
+      for (int i=0; i<Ntotal; i++) {
+         if (i==Ntotal-1) dx = x[i]-x[i-1];
+         else if (i==Nwing || i==Ntotal-1-Nwing) dx = (x[i+1]-x[i-1])/2;
+         else dx = (x[i+1]-x[i]);
+         double dn_dt = ge.Mu('e', n[i])*d(nE,i)/dx;
+         double dp_dt =-ge.Mu('h', p[i])*d(pE,i)/dx;
+         double dE_dt = E[i]*(-ge.Mu('e',n[i])*n[i]-ge.Mu('h',p[i])*p[i])/epsilon/Q;
+         n[i]+=dn_dt*dt;
+         p[i]+=dp_dt*dt;
+         E[i]+=dE_dt*dt;
       }
-      time[iStep]=iStep*dt;
-      // update electron and hole distributions
-      for (int i=0; i<2*N+1; i++) {
-	      double dn_dt = mu_e*(dn[i]/dx*E[i]+n[i]*dE[i]/dx);
-	      double dp_dt =-mu_h*(dp[i]/dx*E[i]+p[i]*dE[i]/dx);
-         //dn_dt+=De*d2n[i]/dx/dx;
-         //dp_dt+=Dh*d2p[i]/dx/dx;
-	      n[i]+=dn_dt*dt;
-	      p[i]+=dp_dt*dt;
-      }
-      // update electric field distribution
-      for (int i=0; i<2*N+1; i++) {
-         E[i]=0;
-         for (int j=0; j<i; j++) E[i]+=p[j]-n[j];
-         for (int j=i+1; j<2*N+1; j++) E[i]+=n[j]-p[j];
-         E[i]/=(2*epsilon/Q/dx);
-         E[i]+=Ee;
-         if (E[i]<0) E[i]=0; // large dt may over evolve things
-      }
-      // update slopes
-      for (int i=1; i<2*N; i++) {
-         dp[i] = (p[i+1]-p[i-1])/2;
-         dn[i] = (n[i+1]-n[i-1])/2;
-         dE[i] = (E[i+1]-E[i-1])/2;
-      }
-      dp[2*N] = dp[0] = 0;
-      dn[2*N] = dn[0] = 0;
-      dE[2*N] = dE[0] = 0;
-      // update second derivative
-      for (int i=1; i<2*N; i++) {
-         d2p[i] = (dp[i+1]-dp[i-1])/2;
-         d2n[i] = (dn[i+1]-dn[i-1])/2;
-      }
-      d2p[2*N] = d2p[0] = 0;
-      d2n[2*N] = d2n[0] = 0;
-
       iStep++;
    }
    t->Write("t",6);
-
-   TGraph *g = new TGraph(nSteps,time,charge);
-   g->Write("g");
 
    output->Close();
 
